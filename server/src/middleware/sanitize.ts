@@ -1,13 +1,13 @@
 import type { Request, Response, NextFunction } from 'express';
 import { JSDOM } from 'jsdom';
-import DOMPurify from 'dompurify';
+import createDOMPurify from 'dompurify';
 
 // Create a DOMPurify instance with jsdom
 const window = new JSDOM('').window;
-const purify = DOMPurify(window as unknown as Window);
+const purify = createDOMPurify(window);
 
 // Configure DOMPurify to strip dangerous content
-const PURIFY_CONFIG: DOMPurify.Config = {
+const PURIFY_CONFIG = {
   ALLOWED_TAGS: [
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'p', 'br', 'hr',
@@ -34,7 +34,7 @@ const PURIFY_CONFIG: DOMPurify.Config = {
  * Sanitize a single HTML string value.
  */
 export function sanitizeHtml(dirty: string): string {
-  return purify.sanitize(dirty, PURIFY_CONFIG) as string;
+  return purify.sanitize(dirty, PURIFY_CONFIG) as unknown as string;
 }
 
 /**

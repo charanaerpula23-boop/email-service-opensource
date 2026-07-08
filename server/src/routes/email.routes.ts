@@ -128,7 +128,7 @@ router.get(
       }
 
       const userId = req.user!.userId;
-      const emailId = req.params.id;
+      const emailId = String(req.params.id);
 
       const email = EmailService.getEmailById(emailId, userId);
       if (!email) {
@@ -267,8 +267,8 @@ router.delete(
       }
 
       const userId = req.user!.userId;
-      const emailId = req.params.id;
-      const permanent = req.query.permanent === 'true';
+      const emailId = String(req.params.id);
+      const permanent = String(req.query.permanent ?? '') === 'true';
 
       let success: boolean;
       if (permanent) {
@@ -309,7 +309,7 @@ router.patch(
       }
 
       const userId = req.user!.userId;
-      const emailId = req.params.id;
+      const emailId = String(req.params.id);
 
       // Verify ownership
       const email = EmailService.getEmailById(emailId, userId);
@@ -325,7 +325,7 @@ router.patch(
         folder?: string;
       };
 
-      const updated = EmailModel.update(emailId, {
+      const updated = EmailModel.update(String(emailId), {
         is_read,
         is_starred,
         labels,
@@ -337,7 +337,7 @@ router.patch(
         return;
       }
 
-      const updatedEmail = EmailModel.findById(emailId);
+      const updatedEmail = EmailModel.findById(String(emailId));
       res.json(updatedEmail);
     } catch (error) {
       logger.error('Update email error', {
