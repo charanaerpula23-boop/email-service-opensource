@@ -256,18 +256,26 @@ export function renderComposePage(container) {
     sendIcon.style.animation = 'slideRight 0.3s ease both';
 
     try {
-      await api.post('/emails/send', {
+      const ccVal = overlay.querySelector('#ccInput')?.value.trim();
+      const bccVal = overlay.querySelector('#bccInput')?.value.trim();
+      
+      const payload = {
         to: recipients,
-        cc: overlay.querySelector('#ccInput')?.value || '',
-        bcc: overlay.querySelector('#bccInput')?.value || '',
         subject,
-        body
-      });
+        bodyHtml: body
+      };
+      
+      if (ccVal) payload.cc = ccVal.split(',').map(e => e.trim()).filter(Boolean);
+      if (bccVal) payload.bcc = bccVal.split(',').map(e => e.trim()).filter(Boolean);
+
+      await api.post('/emails/send', payload);
       showToast('Email sent successfully!', 'success');
       closeCompose();
     } catch (err) {
-      showToast('Email sent (demo mode)', 'success');
-      closeCompose();
+      sendBtn.disabled = false;
+      sendText.textContent = 'Send';
+      sendIcon.style.animation = 'none';
+      showToast(err.message || 'Failed to send email', 'error');
     }
   });
 

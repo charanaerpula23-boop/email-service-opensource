@@ -116,9 +116,17 @@ export async function apiRequest(method, endpoint, body = null, options = {}) {
   }
 
   if (!response.ok) {
-    const error = new Error(
-      (typeof data === 'object' && data.message) || data || `HTTP ${response.status}`
-    );
+    let errMsg = `HTTP ${response.status}`;
+    if (typeof data === 'object') {
+      if (data.errors && data.errors.length > 0) {
+        errMsg = data.errors[0].msg || data.errors[0].message || 'Validation error';
+      } else {
+        errMsg = data.error || data.message || errMsg;
+      }
+    } else if (typeof data === 'string') {
+      errMsg = data;
+    }
+    const error = new Error(errMsg);
     error.status = response.status;
     error.data = data;
     throw error;

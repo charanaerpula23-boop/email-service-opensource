@@ -142,8 +142,9 @@ function renderAccountTab(panel) {
 /* ════════════════════════════════════════
    SECURITY TAB
    ════════════════════════════════════════ */
-function renderSecurityTab(panel) {
-  const fingerprint = 'A4B2 3C9F D8E1 7654 2FB0  9C8D E3A7 B1F5 6D0E 2C4A';
+async function renderSecurityTab(panel) {
+  const user = getCurrentUser();
+  let fingerprint = 'Loading...';
 
   panel.innerHTML = `
     <div class="settings-section card animate-slideUp">
@@ -157,13 +158,13 @@ function renderSecurityTab(panel) {
       </div>
       <div class="key-actions" style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap">
         <button class="btn btn-secondary" id="exportPubKey">
-          📤 Export Public Key
+          Export Public Key
         </button>
         <button class="btn btn-secondary" id="exportPrivKey">
-          🔐 Export Private Key
+          Export Private Key
         </button>
         <button class="btn btn-secondary" id="importKeyBtn">
-          📥 Import Key
+          Import Key
         </button>
       </div>
     </div>
@@ -191,6 +192,19 @@ function renderSecurityTab(panel) {
       </div>
     </div>
   `;
+
+  if (user && user.id) {
+    try {
+      const keysInfo = await api.get('/keys/' + user.id);
+      fingerprint = keysInfo.fingerprint || 'No key found';
+      const fpEl = panel.querySelector('#fingerprint');
+      if (fpEl) fpEl.textContent = fingerprint;
+    } catch (err) {
+      fingerprint = 'Failed to load key';
+      const fpEl = panel.querySelector('#fingerprint');
+      if (fpEl) fpEl.textContent = fingerprint;
+    }
+  }
 
   panel.querySelector('#copyFingerprint').addEventListener('click', () => {
     navigator.clipboard.writeText(fingerprint).then(() => {
@@ -230,7 +244,7 @@ function renderAppearanceTab(panel) {
       <div class="theme-toggle-wrap">
         <div class="theme-option">
           <div class="theme-label">
-            <span style="font-size:24px" id="themeIcon">🌙</span>
+            <span style="font-size:24px" id="themeIcon">[Dark]</span>
             <div>
               <div style="font-weight:600;color:#f1f5f9" id="themeName">Dark Mode</div>
               <div style="font-size:13px;color:#64748b">Easier on the eyes at night</div>
@@ -287,7 +301,7 @@ function renderAppearanceTab(panel) {
   const themeName = panel.querySelector('#themeName');
   themeToggle.addEventListener('change', () => {
     const isDark = themeToggle.checked;
-    themeIcon.textContent = isDark ? '🌙' : '☀️';
+    themeIcon.textContent = isDark ? '[Dark]' : '[Light]';
     themeName.textContent = isDark ? 'Dark Mode' : 'Light Mode';
     showToast(`${isDark ? 'Dark' : 'Light'} mode activated`, 'info');
   });
@@ -313,7 +327,8 @@ function renderAppearanceTab(panel) {
    DOMAIN SETUP TAB
    ════════════════════════════════════════ */
 function renderDomainTab(panel) {
-  const domain = 'securemail.dev';
+  const user = getCurrentUser();
+  const domain = user && user.email ? user.email.split('@')[1] : 'example.com';
 
   panel.innerHTML = `
     <div class="settings-section card animate-slideUp">
@@ -349,8 +364,8 @@ function renderDomainTab(panel) {
       <h3 class="settings-section-title">DKIM Record</h3>
       <p style="color:#64748b;font-size:13px;margin-bottom:12px">Verifies email authenticity</p>
       <div class="code-block" style="position:relative">
-        <code>Type: TXT\nHost: default._domainkey\nValue: v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3D...</code>
-        <button class="copy-btn dns-copy" data-record="v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3D...">Copy</button>
+        <code>Type: TXT\nHost: mail._domainkey\nValue: v=DKIM1; k=rsa; p=YOUR_PUBLIC_KEY</code>
+        <button class="copy-btn dns-copy" data-record="v=DKIM1; k=rsa; p=YOUR_PUBLIC_KEY">Copy</button>
       </div>
     </div>
 
@@ -365,7 +380,7 @@ function renderDomainTab(panel) {
 
     <div class="settings-section card animate-slideUp delay-6">
       <button class="btn btn-primary btn-lg" id="verifyDns" style="width:100%">
-        <span>🔍</span> Verify DNS Configuration
+        <span>[Verify]</span> Verify DNS Configuration
       </button>
       <div id="dnsResult" style="margin-top:16px"></div>
     </div>
@@ -389,36 +404,37 @@ function renderDomainTab(panel) {
     btn.disabled = true;
     btn.innerHTML = '<div class="spinner spinner-sm" style="border-top-color:#fff"></div> Checking…';
 
-    await new Promise(r => setTimeout(r, 2000));
+    try {
+      const resp = await api.get('/dns/verify?domain=' + domain);
+      const dnsResult = resp.result;
+      
+      const renderRow = (label, status) => {
+        const cls = status ? 'success' : 'error';
+        const icon = status ? '✓' : '✕';
+        const badgeCls = status ? 'badge-success' : 'badge-danger';
+        const badgeText = status ? 'Configured' : 'Missing';
+        return `<div class="dns-result-row">
+            <span class="dns-check ${cls}">${icon}</span>
+            <span>${label}</span>
+            <span class="badge ${badgeCls}">${badgeText}</span>
+          </div>`;
+      };
 
-    result.innerHTML = `
-      <div class="dns-results animate-slideUp">
-        <div class="dns-result-row">
-          <span class="dns-check success">✓</span>
-          <span>MX Record</span>
-          <span class="badge badge-success">Configured</span>
+      result.innerHTML = `
+        <div class="dns-results animate-slideUp">
+          ${renderRow('MX Record', dnsResult.mx)}
+          ${renderRow('SPF Record', dnsResult.spf)}
+          ${renderRow('DKIM Record', dnsResult.dkim)}
+          ${renderRow('DMARC Record', dnsResult.dmarc)}
         </div>
-        <div class="dns-result-row">
-          <span class="dns-check success">✓</span>
-          <span>SPF Record</span>
-          <span class="badge badge-success">Configured</span>
-        </div>
-        <div class="dns-result-row">
-          <span class="dns-check warning">!</span>
-          <span>DKIM Record</span>
-          <span class="badge badge-warning">Pending</span>
-        </div>
-        <div class="dns-result-row">
-          <span class="dns-check success">✓</span>
-          <span>DMARC Record</span>
-          <span class="badge badge-success">Configured</span>
-        </div>
-      </div>
-    `;
+      `;
+      showToast('DNS verification complete', 'info');
+    } catch (err) {
+      showToast('DNS check failed: ' + (err.message || 'Error'), 'error');
+    }
 
     btn.disabled = false;
-    btn.innerHTML = '<span>🔍</span> Verify DNS Configuration';
-    showToast('DNS verification complete', 'info');
+    btn.innerHTML = '<span>[Verify]</span> Verify DNS Configuration';
   });
 }
 

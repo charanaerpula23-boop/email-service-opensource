@@ -13,44 +13,7 @@ let currentFolder = 'inbox';
 let selectedEmail = null;
 let emails = [];
 
-/* ── Mock data for demo ── */
-const MOCK_EMAILS = [
-  {
-    id: '1', from: { name: 'Alice Johnson', email: 'alice@example.com' },
-    to: 'you@securemail.dev', subject: 'Project Update — Q3 Roadmap',
-    preview: 'Hi, I wanted to share the latest updates on our Q3 roadmap. The new features are looking great and we should…',
-    body: '<p>Hi,</p><p>I wanted to share the latest updates on our Q3 roadmap. The new features are looking great and we should be on track for the release.</p><p>Key highlights:</p><ul><li>End-to-end encryption is now fully integrated</li><li>Performance improvements across all modules</li><li>New UI design system completed</li></ul><p>Let me know if you have questions.</p><p>Best,<br/>Alice</p>',
-    date: new Date(Date.now() - 1800000).toISOString(), read: false, starred: true, encrypted: true
-  },
-  {
-    id: '2', from: { name: 'Bob Smith', email: 'bob@company.com' },
-    to: 'you@securemail.dev', subject: 'Meeting Tomorrow at 10 AM',
-    preview: 'Just confirming our meeting tomorrow at 10 AM. I\'ll send the Zoom link shortly before the meeting…',
-    body: '<p>Just confirming our meeting tomorrow at 10 AM.</p><p>I\'ll send the Zoom link shortly before the meeting. Please review the attached agenda beforehand.</p><p>Thanks,<br/>Bob</p>',
-    date: new Date(Date.now() - 7200000).toISOString(), read: false, starred: false, encrypted: true
-  },
-  {
-    id: '3', from: { name: 'GitHub', email: 'noreply@github.com' },
-    to: 'you@securemail.dev', subject: '[securemail] Pull Request #142 merged',
-    preview: 'Pull Request #142 "feat: add glassmorphism UI components" has been merged into main by alice…',
-    body: '<p>Pull Request <strong>#142</strong> "feat: add glassmorphism UI components" has been merged into main by alice.</p><p>3 files changed, 247 insertions(+), 12 deletions(-)</p>',
-    date: new Date(Date.now() - 18000000).toISOString(), read: true, starred: false, encrypted: false
-  },
-  {
-    id: '4', from: { name: 'Sarah Chen', email: 'sarah@design.co' },
-    to: 'you@securemail.dev', subject: 'Design Review Feedback',
-    preview: 'The new dark mode design looks fantastic! I have a few suggestions for the color palette that might improve…',
-    body: '<p>The new dark mode design looks fantastic!</p><p>I have a few suggestions for the color palette that might improve contrast ratios:</p><ol><li>The muted text color could be slightly brighter</li><li>Consider adding a subtle gradient to card borders</li><li>The accent purple works beautifully with the dark background</li></ol><p>Great work overall!</p><p>— Sarah</p>',
-    date: new Date(Date.now() - 86400000).toISOString(), read: true, starred: true, encrypted: true
-  },
-  {
-    id: '5', from: { name: 'Security Alert', email: 'security@securemail.dev' },
-    to: 'you@securemail.dev', subject: 'New login from Chrome on Windows',
-    preview: 'We noticed a new sign-in to your SecureMail account from Chrome on Windows 11…',
-    body: '<p>We noticed a new sign-in to your SecureMail account.</p><p><strong>Device:</strong> Chrome on Windows 11<br/><strong>Location:</strong> San Francisco, CA<br/><strong>Time:</strong> Today at 3:42 PM</p><p>If this was you, no action is needed. If not, please secure your account immediately.</p>',
-    date: new Date(Date.now() - 172800000).toISOString(), read: true, starred: false, encrypted: false
-  }
-];
+
 
 export function renderInboxPage(container, folder = 'inbox') {
   currentFolder = folder;
@@ -62,8 +25,7 @@ export function renderInboxPage(container, folder = 'inbox') {
 
   /* Sidebar */
   const sidebarEl = document.createElement('div');
-  const unreadCount = MOCK_EMAILS.filter(e => !e.read).length;
-  renderSidebar(sidebarEl, currentFolder, { inbox: unreadCount, drafts: 1 }, () => {
+  renderSidebar(sidebarEl, currentFolder, { inbox: 0, drafts: 0 }, () => {
     renderComposePage(document.getElementById('app'));
   });
 
@@ -76,7 +38,7 @@ export function renderInboxPage(container, folder = 'inbox') {
   listHeader.innerHTML = `
     <div class="inbox-list-title">
       <h2>${capitalize(currentFolder)}</h2>
-      <span class="inbox-list-count">${MOCK_EMAILS.length} messages</span>
+      <span class="inbox-list-count" id="listCount">0 messages</span>
     </div>
     <div class="inbox-search">
       <span class="inbox-search-icon">🔍</span>
@@ -136,12 +98,21 @@ async function loadEmails(listBody, detailPanel) {
   try {
     const data = await api.get(`/emails?folder=${currentFolder}`);
     emails = Array.isArray(data) ? data : (data.emails || []);
-  } catch (_) {
-    /* Use mock data as fallback */
-    emails = MOCK_EMAILS;
-  }
+    
+    // Update count in header
+    const listCount = document.getElementById('listCount');
+    if (listCount) listCount.textContent = `${emails.length} messages`;
 
-  renderEmailList(listBody, emails, detailPanel);
+    renderEmailList(listBody, emails, detailPanel);
+  } catch (err) {
+    listBody.innerHTML = `
+      <div class="inbox-empty animate-fadeIn">
+        <div class="inbox-empty-icon animate-float">Warning</div>
+        <h3>Failed to load emails</h3>
+        <p>${escapeHtml(err.message || 'Unknown error occurred')}</p>
+      </div>
+    `;
+  }
 }
 
 function renderEmailList(listBody, emailList, detailPanel) {
@@ -150,7 +121,7 @@ function renderEmailList(listBody, emailList, detailPanel) {
   if (emailList.length === 0) {
     listBody.innerHTML = `
       <div class="inbox-empty animate-fadeIn">
-        <div class="inbox-empty-icon animate-float">📭</div>
+        <div class="inbox-empty-icon animate-float">Mailbox</div>
         <h3>No emails yet</h3>
         <p>Your ${currentFolder} is empty. Time to compose something!</p>
       </div>

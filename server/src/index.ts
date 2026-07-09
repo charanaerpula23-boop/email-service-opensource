@@ -8,6 +8,7 @@ import { registerDefaultHandlers } from './services/queue.service.js';
 import authRoutes from './routes/auth.routes.js';
 import emailRoutes from './routes/email.routes.js';
 import keysRoutes from './routes/keys.routes.js';
+import dnsRoutes from './routes/dns.routes.js';
 import { logger } from './utils/logger.js';
 import { getDb, closeDb } from './db/connection.js';
 
@@ -43,6 +44,7 @@ app.set('trust proxy', 1);
 app.use('/api/auth', authRoutes);
 app.use('/api/emails', emailRoutes);
 app.use('/api/keys', keysRoutes);
+app.use('/api/dns', dnsRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
